@@ -109,6 +109,8 @@ Result_LevelSetPtr parse_ccl(uint8_t const* data, size_t data_len) {
     LevelSet_free(set);                                            \
     return res_err(LevelSetPtr, "CCL file ends too soon");         \
   }
+  if (data == NULL)
+    return res_err(LevelSetPtr, "CCL data pointer is null");
 
   LevelSet* set = NULL;
 
