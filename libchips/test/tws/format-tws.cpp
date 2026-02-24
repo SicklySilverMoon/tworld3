@@ -462,5 +462,4 @@ namespace {
 
     TWSSet_free(set);
   }
-
 }

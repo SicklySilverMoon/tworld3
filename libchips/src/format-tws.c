@@ -58,7 +58,7 @@ uint32_t TWSSet_get_solutions_n(TWSSet const* self) {
 }
 
 TWSMetadata const* TWSSet_get_level_solution(TWSSet const* self, uint16_t level_num) {
-  for (uint16_t i = 0; i < self->solutions_n; i++) {
+  for (uint16_t i = 0; i < self->solutions_n; i += 1) {
     if (self->solutions[i].level_num == level_num) {
       return &self->solutions[i];
     }
@@ -75,8 +75,6 @@ uint32_t TWSSet_get_level_idx(TWSSet const* self, uint16_t level_num) {
 }
 
 void TWSMetadata_free(TWSMetadata* self) {
-  if (self == NULL)
-    return;
   free(self->inputs);
 }
 
@@ -86,7 +84,7 @@ void TWSSet_free(TWSSet* self) {
   if (self->set_name != NULL)
     free(self->set_name);
   if (self->solutions) {
-    for (uint32_t i = 0; i < self->solutions_n; i++) {
+    for (uint32_t i = 0; i < self->solutions_n; i += 1) {
       TWSMetadata_free(&self->solutions[i]);
     }
     free(self->solutions);
@@ -94,21 +92,21 @@ void TWSSet_free(TWSSet* self) {
   free(self);
 }
 
-void TWSSet_add_level(TWSSet* self, TWSMetadata* level) {
+static void TWSSet_add_level(TWSSet* self, TWSMetadata* level) {
   if (self->solutions_n + 1 > self->solutions_allocated) {
     self->solutions_allocated *= 2;
     self->solutions = xrealloc(self->solutions, sizeof(TWSMetadata) * self->solutions_allocated);
   }
   self->solutions[self->solutions_n] = *level;
-  self->solutions_n++;
+  self->solutions_n += 1;
 }
 
-Result_TWSSetPtr get_error(TWSSet* self, const char* err_msg) {
+static Result_TWSSetPtr get_error(TWSSet* self, const char* err_msg) {
   TWSSet_free(self);
   return res_err(TWSSetPtr, err_msg);
 }
 
-int TWSMetadata_cmp(const void* lhs_v, const void* rhs_v) {
+static int TWSMetadata_cmp(const void* lhs_v, const void* rhs_v) {
   TWSMetadata const* lhs = lhs_v;
   TWSMetadata const* rhs = rhs_v;
   if (lhs->level_num < rhs->level_num) {
@@ -120,7 +118,7 @@ int TWSMetadata_cmp(const void* lhs_v, const void* rhs_v) {
   }
 }
 
-  //https://www.muppetlabs.com/~breadbox/software/tworld/tworldff.html#3
+// https://www.muppetlabs.com/~breadbox/software/tworld/tworldff.html#3
 Result_TWSSetPtr parse_tws(uint8_t const* data, size_t data_len) {
   uint8_t const* const base_data = data;
   TWSSet* set = xcalloc(sizeof(TWSSet), 1);
@@ -161,9 +159,9 @@ Result_TWSSetPtr parse_tws(uint8_t const* data, size_t data_len) {
     if (data - base_data >= data_len)
       break;
     TWSMetadata level = {};
-    assert_data_avail(4);
     uint32_t size = 0;
     while (size == 0) {
+      assert_data_avail(4);
       size = read_uint32_le(data);
       data += 4;
     }
@@ -175,10 +173,9 @@ Result_TWSSetPtr parse_tws(uint8_t const* data, size_t data_len) {
       break;
     // return get_error(set, "Not enough data for first solution.");
     if (first_run && data[0] == 0 && data[1] == 0 && data[2] == 0 && data[3] == 0 && data[4] == 0 && data[5] == 0) {
-      data += 6;
       if (size <= 16)
         return get_error(set, "Not enough data for set name string.");
-      data += 10;
+      data += 16;
       size -= 16;
       set->set_name = xmalloc(size);
       memcpy(set->set_name, data, size);
@@ -205,11 +202,11 @@ Result_TWSSetPtr parse_tws(uint8_t const* data, size_t data_len) {
         data += 1;
         level.prng_seed = read_uint32_le(data);
         data += 4;
-        level.num_ticks = read_uint32_le(data) + 1; //yeah idk either but it is correct
+        level.num_ticks = read_uint32_le(data) + 1; // yeah idk either but it is correct
         data += 4;
         size -= 10;
 
-        assert(((GameInput) DIRECTION_NIL) == 0);
+        static_assert(((GameInput) DIRECTION_NIL) == 0);
         level.inputs = xcalloc(sizeof(GameInput), level.num_ticks);
         uint32_t tick = 0;
         GameInput const input_lookup[] = {DIRECTION_NORTH, DIRECTION_WEST, DIRECTION_SOUTH, DIRECTION_EAST,
@@ -275,7 +272,7 @@ Result_TWSSetPtr parse_tws(uint8_t const* data, size_t data_len) {
                 time = (bytes[4] & 0b00011111) << 26 | bytes[3] << 18 | bytes[2] << 10 | bytes[1] >> 6;
               }
             }
-            for (uint32_t i = 0; i < time; i++) {
+            for (uint32_t i = 0; i < time; i += 1) {
               level.inputs[tick + i] = DIRECTION_NIL;
             }
             level.inputs[tick + time] = input;
@@ -286,12 +283,12 @@ Result_TWSSetPtr parse_tws(uint8_t const* data, size_t data_len) {
       TWSSet_add_level(set, &level);
     }
     first_run = false;
-    levels_processed++;
+    levels_processed += 1;
   }
 
   set->solutions_n = levels_processed;
   set->solutions = xrealloc(set->solutions, sizeof(TWSMetadata) * set->solutions_n);
   set->solutions_allocated = set->solutions_n;
-  qsort(set->solutions, set->solutions_n, sizeof(TWSMetadata), TWSMetadata_cmp); //put the levels in order
+  qsort(set->solutions, set->solutions_n, sizeof(TWSMetadata), TWSMetadata_cmp); // put the levels in order
   return res_val(TWSSetPtr, set);
 }

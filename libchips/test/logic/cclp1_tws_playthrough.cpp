@@ -10,53 +10,52 @@ extern "C" {
 #include "logic.h"
 }
 
+struct LevelsetTwssetPair {
+  LevelSet* set;
+  TWSSet* tws;
+};
+
 namespace {
-  TEST(CCLP1TWS, LoadAndPlayMS) {
-    Result_LevelSetPtr res = parse_ccl(CCLP1_ccl, sizeof(CCLP1_ccl));
+  LevelsetTwssetPair loadsets(uint8_t const* levelset, size_t levelset_size, uint8_t const* tws, size_t tws_size) {
+    LevelsetTwssetPair pair = {};
+
+    Result_LevelSetPtr res = parse_ccl(levelset, levelset_size);
     EXPECT_TRUE(res.success);
-    LevelSet* set = res.value;
+    pair.set = res.value;
 
-    Result_TWSSetPtr tws_res = parse_tws(public_CHIPS_tws, sizeof(public_CHIPS_tws));
+    Result_TWSSetPtr tws_res = parse_tws(tws, tws_size);
     EXPECT_TRUE(tws_res.success);
-    TWSSet* tws = tws_res.value;
+    pair.tws = tws_res.value;
+    return pair;
+  }
 
-    for (size_t i = 0; i < set->levels_n; i++) {
-      Result_LevelPtr level_res = LevelMetadata_make_level(&set->levels[i], &ms_logic);
+  void freeset(LevelsetTwssetPair pair) {
+    LevelSet_free(pair.set);
+    TWSSet_free(pair.tws);
+  }
+
+  void testset(LevelsetTwssetPair pair) {
+    for (size_t i = 0; i < pair.set->levels_n; i++) {
+      Result_LevelPtr level_res = LevelMetadata_make_level(&pair.set->levels[i], &ms_logic);
       EXPECT_TRUE(level_res.success);
       Level* level = level_res.value;
 
-      TWSMetadata* solution = &tws->solutions[i];
+      TWSMetadata* solution = &pair.tws->solutions[i];
       for (size_t j = 0; j < solution->num_ticks; j++) {
         level->game_input = solution->inputs[j];
-        ms_logic.tick_level(level);
+        Level_tick(level);
       }
       EXPECT_TRUE(level->level_complete);
       Level_free(level);
     }
-    LevelSet_free(set);
-    TWSSet_free(tws);
+    freeset(pair);
+  }
+
+  TEST(CCLP1TWS, LoadAndPlayMS) {
+    testset(loadsets(CCLP1_ccl, sizeof(CCLP1_ccl), public_CHIPS_tws, sizeof(public_CHIPS_tws)));
   }
 
   TEST(CCLP1TWS, LoadAndPlayLynx) {
-    Result_LevelSetPtr res = parse_ccl(CCLP1_ccl, sizeof(CCLP1_ccl));
-    EXPECT_TRUE(res.success);
-    LevelSet* set = res.value;
-
-    Result_TWSSetPtr tws_res = parse_tws(public_CHIPS_lynx_tws, sizeof(public_CHIPS_lynx_tws));
-    EXPECT_TRUE(tws_res.success);
-    TWSSet* tws = tws_res.value;
-
-    for (size_t i = 0; i < set->levels_n; i++) {
-      Result_LevelPtr level_res = LevelMetadata_make_level(&set->levels[i], &lynx_logic);
-      EXPECT_TRUE(level_res.success);
-      Level* level = level_res.value;
-
-      TWSMetadata* solution = &tws->solutions[i];
-      for (size_t j = 0; j < solution->num_ticks; j++) {
-        level->game_input = solution->inputs[j];
-        lynx_logic.tick_level(level);
-      }
-      EXPECT_TRUE(level->level_complete);
-    }
+    testset(loadsets(CCLP1_ccl, sizeof(CCLP1_ccl), public_CHIPS_lynx_tws, sizeof(public_CHIPS_lynx_tws)));
   }
 }
