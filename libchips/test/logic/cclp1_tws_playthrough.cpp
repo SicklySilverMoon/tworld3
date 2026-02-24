@@ -1,6 +1,9 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
+#include "data/ccl/ccl_embeds.h"
+#include "data/tws/tws_embeds.h"
+
 extern "C" {
 #include "formats.h"
 #include "format-tws.h"
@@ -8,9 +11,6 @@ extern "C" {
 }
 
 namespace {
-#include "data/ccl/CCLP1.ccl.h"
-#include "data/tws/public_CHIPS.dac.tws.h"
-#include "data/tws/public_CHIPS_lynx.dac.tws.h"
   TEST(CCLP1TWS, LoadAndPlayMS) {
     Result_LevelSetPtr res = parse_ccl(CCLP1_ccl, sizeof(CCLP1_ccl));
     EXPECT_TRUE(res.success);

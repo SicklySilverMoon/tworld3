@@ -5,7 +5,6 @@ extern "C" {
 #include "formats.h"
 }
 
-#include "data/ccl/CCLP1.ccl.h"
 char const* titles[] = {
   "Key Pyramid",
   "Slip and Slide",
@@ -308,6 +307,10 @@ uint16_t times[] = {
   999,
   450,
   600,
+};
+
+const uint8_t CCLP1_ccl[] = {
+  #embed "../data/ccl/CCLP1.ccl"
 };
 
 namespace {
