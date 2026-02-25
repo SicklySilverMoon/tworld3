@@ -220,6 +220,9 @@ Result_TWSSetPtr parse_tws(uint8_t const* data, size_t data_len) {
           data += 1;
           size -= 1;
           if ((first_byte & 0b11) == 0b00) {
+Add            if (tick + 8 >= level.num_ticks) {
+              return get_error(set, "More moves than specified ticks in TWS solution.");
+            }
             input = input_lookup[(first_byte >> 2) & 0b11];
             GameInput input2 = input_lookup[(first_byte >> 4) & 0b11];
             GameInput input3 = input_lookup[(first_byte >> 6) & 0b11];
@@ -269,8 +272,11 @@ Result_TWSSetPtr parse_tws(uint8_t const* data, size_t data_len) {
                 size -= num_bytes;
                 num_bytes += 1;
                 input = bytes[1] & 0b00111111 | bytes[0] >> 5;
-                time = (bytes[4] & 0b00011111) << 26 | bytes[3] << 18 | bytes[2] << 10 | bytes[1] >> 6;
+                time = (bytes[4] & 0b00011111) << 18 | bytes[3] << 10 | bytes[2] << 2 | bytes[1] >> 6;
               }
+            }
+            if (tick + time >= level.num_ticks) {
+              return get_error(set, "More moves than specified ticks in TWS solution.");
             }
             for (uint32_t i = 0; i < time; i += 1) {
               level.inputs[tick + i] = DIRECTION_NIL;

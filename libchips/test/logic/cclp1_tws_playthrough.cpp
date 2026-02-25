@@ -34,6 +34,26 @@ namespace {
     TWSSet_free(pair.tws);
   }
 
+  void print_moves(uint16_t level_num, const GameInput* move_list, uint32_t num_ticks) {
+    const char moves_chars[] = {
+      [DIRECTION_NIL] = '-',
+      [DIRECTION_NORTH] = 'N',
+      [DIRECTION_WEST] = 'W',
+      [DIRECTION_SOUTH] = 'S',
+      [DIRECTION_EAST] = 'E',
+      [DIRECTION_NORTH | DIRECTION_WEST] = 'Q',
+      [DIRECTION_SOUTH | DIRECTION_WEST] = 'Z',
+      [DIRECTION_NORTH | DIRECTION_EAST] = 'R',
+      [DIRECTION_SOUTH | DIRECTION_EAST] = 'V',
+    };
+
+    printf("%u: ", level_num);
+    for (size_t i = 0; i < num_ticks; i++) {
+      putc(moves_chars[move_list[i]], stdout);
+    }
+    putc('\n', stdout);
+  }
+
   void testset(LevelsetTwssetPair pair) {
     for (size_t i = 0; i < pair.set->levels_n; i++) {
       Result_LevelPtr level_res = LevelMetadata_make_level(&pair.set->levels[i], &ms_logic);
@@ -44,6 +64,9 @@ namespace {
       for (size_t j = 0; j < solution->num_ticks; j++) {
         level->game_input = solution->inputs[j];
         Level_tick(level);
+      }
+      if (!level->level_complete) {
+        print_moves(solution->level_num, solution->inputs, solution->num_ticks);
       }
       EXPECT_TRUE(level->level_complete);
       Level_free(level);
