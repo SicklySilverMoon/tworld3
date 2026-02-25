@@ -19,8 +19,13 @@ FetchContent_MakeAvailable(googletest)
 
 include_directories(.)
 
-file(GLOB_RECURSE GLOB_TEST_SRCS *.h *.c *.cpp)
+set(lib_chips_test_src)
+list(APPEND lib_chips_test_src
+    ccl/format-ccl.cpp
+    tws/format-tws.cpp
+    logic/cclp1_tws_playthrough.cpp
+)
 
 # 'libchipsTests' is the target name
-add_executable(lib_chips_tests ${GLOB_TEST_SRCS} ${GLOB_SRCS})
+add_executable(lib_chips_tests ${lib_chips_test_src})
 target_link_libraries(lib_chips_tests PRIVATE chips gtest gmock gtest_main)

@@ -52,10 +52,14 @@ namespace {
   }
 
   TEST(CCLP1TWS, LoadAndPlayMS) {
-    testset(loadsets(CCLP1_ccl, sizeof(CCLP1_ccl), public_CHIPS_tws, sizeof(public_CHIPS_tws)));
+    LevelsetTwssetPair pair = loadsets(CCLP1_ccl, sizeof(CCLP1_ccl), public_CCLP1_tws, sizeof(public_CCLP1_tws));
+    EXPECT_EQ(pair.set->levels_n, pair.tws->solutions_n);
+    testset(pair);
   }
 
   TEST(CCLP1TWS, LoadAndPlayLynx) {
-    testset(loadsets(CCLP1_ccl, sizeof(CCLP1_ccl), public_CHIPS_lynx_tws, sizeof(public_CHIPS_lynx_tws)));
+    LevelsetTwssetPair pair = loadsets(CCLP1_ccl, sizeof(CCLP1_ccl), public_CCLP1_lynx_tws, sizeof(public_CCLP1_lynx_tws));
+    EXPECT_EQ(pair.set->levels_n, pair.tws->solutions_n);
+    testset(pair);
   }
 }
