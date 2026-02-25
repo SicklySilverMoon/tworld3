@@ -220,7 +220,7 @@ Result_TWSSetPtr parse_tws(uint8_t const* data, size_t data_len) {
           data += 1;
           size -= 1;
           if ((first_byte & 0b11) == 0b00) {
-Add            if (tick + 8 >= level.num_ticks) {
+            if (tick + 8 >= level.num_ticks) {
               return get_error(set, "More moves than specified ticks in TWS solution.");
             }
             input = input_lookup[(first_byte >> 2) & 0b11];

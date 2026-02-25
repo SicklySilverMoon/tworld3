@@ -85,4 +85,52 @@ namespace {
     EXPECT_EQ(pair.set->levels_n, pair.tws->solutions_n);
     testset(pair);
   }
+
+  TEST(CCLP2TWS, LoadAndPlayMS) {
+    LevelsetTwssetPair pair = loadsets(CCLP2_ccl, sizeof(CCLP2_ccl), public_CCLP2_tws, sizeof(public_CCLP2_tws));
+    EXPECT_EQ(pair.set->levels_n, pair.tws->solutions_n);
+    testset(pair);
+  }
+
+  TEST(CCLP2TWS, LoadAndPlayLynx) {
+    LevelsetTwssetPair pair = loadsets(CCLXP2_ccl, sizeof(CCLXP2_ccl), public_CCLXP2_tws, sizeof(public_CCLXP2_tws));
+    EXPECT_EQ(pair.set->levels_n, pair.tws->solutions_n);
+    testset(pair);
+  }
+
+  TEST(CCLP3TWS, LoadAndPlayMS) {
+    LevelsetTwssetPair pair = loadsets(CCLP3_ccl, sizeof(CCLP3_ccl), public_CCLP3_tws, sizeof(public_CCLP3_tws));
+    EXPECT_EQ(pair.set->levels_n, pair.tws->solutions_n);
+    testset(pair);
+  }
+
+  TEST(CCLP3TWS, LoadAndPlayLynx) {
+    LevelsetTwssetPair pair = loadsets(CCLP3_ccl, sizeof(CCLP3_ccl), public_CCLP3_lynx_tws, sizeof(public_CCLP3_lynx_tws));
+    EXPECT_EQ(pair.set->levels_n, pair.tws->solutions_n);
+    testset(pair);
+  }
+
+  TEST(CCLP4TWS, LoadAndPlayMS) {
+    LevelsetTwssetPair pair = loadsets(CCLP4_ccl, sizeof(CCLP4_ccl), public_CCLP4_tws, sizeof(public_CCLP4_tws));
+    EXPECT_EQ(pair.set->levels_n, pair.tws->solutions_n);
+    testset(pair);
+  }
+
+  TEST(CCLP4TWS, LoadAndPlayLynx) {
+    LevelsetTwssetPair pair = loadsets(CCLP4_ccl, sizeof(CCLP4_ccl), public_CCLP4_lynx_tws, sizeof(public_CCLP4_lynx_tws));
+    EXPECT_EQ(pair.set->levels_n, pair.tws->solutions_n);
+    testset(pair);
+  }
+
+  TEST(CCLP5TWS, LoadAndPlayMS) {
+    LevelsetTwssetPair pair = loadsets(CCLP5_ccl, sizeof(CCLP5_ccl), public_CCLP5_tws, sizeof(public_CCLP5_tws));
+    EXPECT_EQ(pair.set->levels_n, pair.tws->solutions_n);
+    testset(pair);
+  }
+
+  TEST(CCLP5TWS, LoadAndPlayLynx) {
+    LevelsetTwssetPair pair = loadsets(CCLP5_ccl, sizeof(CCLP5_ccl), public_CCLP5_lynx_tws, sizeof(public_CCLP5_lynx_tws));
+    EXPECT_EQ(pair.set->levels_n, pair.tws->solutions_n);
+    testset(pair);
+  }
 }
