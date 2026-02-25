@@ -172,7 +172,7 @@ namespace {
     LevelSet* set = res.value;
     EXPECT_EQ(set->levels_n, 149);
 
-    for (size_t i = 0; i < 149; i++) {
+    for (size_t i = 0; i < 149; i += 1) {
       EXPECT_STREQ(set->levels[i].title, pairs[i].title);
       EXPECT_EQ(set->levels[i].time_limit, pairs[i].time);
 

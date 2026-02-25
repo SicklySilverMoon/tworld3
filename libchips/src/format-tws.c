@@ -33,12 +33,15 @@ uint32_t TWSMetadata_get_length(TWSMetadata const* self) {
   return self->num_ticks;
 }
 
-GameInput const* TWSMetadata_get_inputs(TWSMetadata const* self) {
-  return self->inputs;
+GameInputList const* TWSMetadata_get_inputs(TWSMetadata const* self) {
+  return &self->input_list;
 }
 
 GameInput TWSMetadata_get_input(TWSMetadata const* self, uint32_t tick_num) {
-  return self->inputs[tick_num];
+  if (tick_num >= self->num_ticks) {
+    return DIRECTION_NIL;
+  }
+  return self->input_list.inputs[tick_num];
 }
 
 RulesetID TWSSet_get_ruleset(TWSSet const* self) {
@@ -75,7 +78,7 @@ uint32_t TWSSet_get_level_idx(TWSSet const* self, uint16_t level_num) {
 }
 
 void TWSMetadata_free(TWSMetadata* self) {
-  free(self->inputs);
+  GameInputList_free(&self->input_list);
 }
 
 void TWSSet_free(TWSSet* self) {
@@ -93,7 +96,7 @@ void TWSSet_free(TWSSet* self) {
 }
 
 static void TWSSet_add_level(TWSSet* self, TWSMetadata* level) {
-  if (self->solutions_n + 1 > self->solutions_allocated) {
+  if (self->solutions_n + 1 > self->solutions_allocated) { // todo: get a proper vector style generic thing going and port this to it
     self->solutions_allocated *= 2;
     self->solutions = xrealloc(self->solutions, sizeof(TWSMetadata) * self->solutions_allocated);
   }
@@ -207,7 +210,7 @@ Result_TWSSetPtr parse_tws(uint8_t const* data, size_t data_len) {
         size -= 10;
 
         static_assert(((GameInput) DIRECTION_NIL) == 0);
-        level.inputs = xcalloc(sizeof(GameInput), level.num_ticks);
+        level.input_list = GameInputList_new(level.num_ticks);
         uint32_t tick = 0;
         GameInput const input_lookup[] = {DIRECTION_NORTH, DIRECTION_WEST, DIRECTION_SOUTH, DIRECTION_EAST,
           DIRECTION_NORTH | DIRECTION_WEST, DIRECTION_SOUTH | DIRECTION_WEST, DIRECTION_NORTH | DIRECTION_EAST,
@@ -220,26 +223,24 @@ Result_TWSSetPtr parse_tws(uint8_t const* data, size_t data_len) {
           data += 1;
           size -= 1;
           if ((first_byte & 0b11) == 0b00) {
-            if (tick + 8 >= level.num_ticks) {
-              return get_error(set, "More moves than specified ticks in TWS solution.");
-            }
             input = input_lookup[(first_byte >> 2) & 0b11];
             GameInput input2 = input_lookup[(first_byte >> 4) & 0b11];
             GameInput input3 = input_lookup[(first_byte >> 6) & 0b11];
-            level.inputs[tick + 0] = DIRECTION_NIL;
-            level.inputs[tick + 1] = DIRECTION_NIL;
-            level.inputs[tick + 2] = DIRECTION_NIL;
-            level.inputs[tick + 3] = input;
+
+            GameInputList_append(&level.input_list, DIRECTION_NIL);
+            GameInputList_append(&level.input_list, DIRECTION_NIL);
+            GameInputList_append(&level.input_list, DIRECTION_NIL);
+            GameInputList_append(&level.input_list, input);
             tick += 4;
-            level.inputs[tick + 0] = DIRECTION_NIL;
-            level.inputs[tick + 1] = DIRECTION_NIL;
-            level.inputs[tick + 2] = DIRECTION_NIL;
-            level.inputs[tick + 3] = input2;
+            GameInputList_append(&level.input_list, DIRECTION_NIL);
+            GameInputList_append(&level.input_list, DIRECTION_NIL);
+            GameInputList_append(&level.input_list, DIRECTION_NIL);
+            GameInputList_append(&level.input_list, input2);
             tick += 4;
-            level.inputs[tick + 0] = DIRECTION_NIL;
-            level.inputs[tick + 1] = DIRECTION_NIL;
-            level.inputs[tick + 2] = DIRECTION_NIL;
-            level.inputs[tick + 3] = input3;
+            GameInputList_append(&level.input_list, DIRECTION_NIL);
+            GameInputList_append(&level.input_list, DIRECTION_NIL);
+            GameInputList_append(&level.input_list, DIRECTION_NIL);
+            GameInputList_append(&level.input_list, input3);
             tick += 4;
           } else {
             if ((first_byte & 0b11) == 0b01) {
@@ -275,15 +276,15 @@ Result_TWSSetPtr parse_tws(uint8_t const* data, size_t data_len) {
                 time = (bytes[4] & 0b00011111) << 18 | bytes[3] << 10 | bytes[2] << 2 | bytes[1] >> 6;
               }
             }
-            if (tick + time >= level.num_ticks) {
-              return get_error(set, "More moves than specified ticks in TWS solution.");
-            }
             for (uint32_t i = 0; i < time; i += 1) {
-              level.inputs[tick + i] = DIRECTION_NIL;
+              GameInputList_append(&level.input_list, DIRECTION_NIL);
             }
-            level.inputs[tick + time] = input;
+            GameInputList_append(&level.input_list, input);
             tick += time + 1;
           }
+        }
+        if (level.input_list.count < level.num_ticks) {
+          GameInputList_resize(&level.input_list, level.num_ticks);
         }
       }
       TWSSet_add_level(set, &level);
@@ -297,4 +298,56 @@ Result_TWSSetPtr parse_tws(uint8_t const* data, size_t data_len) {
   set->solutions_allocated = set->solutions_n;
   qsort(set->solutions, set->solutions_n, sizeof(TWSMetadata), TWSMetadata_cmp); // put the levels in order
   return res_val(TWSSetPtr, set);
+}
+
+GameInputList GameInputList_new(size_t initial_size) {
+  if (initial_size == 0) {
+    initial_size = 8;
+  }
+  GameInputList list = {NULL, 0, initial_size};
+  list.inputs = xcalloc(sizeof(GameInput), list.allocated);
+  return list;
+}
+
+void GameInputList_free(GameInputList* self) {
+  self->count = 0;
+  self->allocated = 0;
+  free(self->inputs);
+  self->inputs = NULL;
+}
+
+void GameInputList_shrink(GameInputList* self) {
+  self->allocated = self->count;
+  self->inputs = xrealloc(self->inputs, sizeof(GameInput) * self->allocated);
+}
+
+void GameInputList_resize(GameInputList* self, size_t new_size) {
+  if (new_size == 0) {
+    free(self->inputs);
+    self->inputs = NULL;
+    self->count = 0;
+    self->allocated = 0;
+    return;
+  }
+  if (new_size <= self->count) {
+    self->allocated = new_size;
+    self->count = new_size;
+    self->inputs = xrealloc(self->inputs, sizeof(GameInput) * self->allocated);
+  } else {
+    self->allocated = new_size;
+    self->inputs = xrealloc(self->inputs, sizeof(GameInput) * self->allocated);
+    for (size_t i = self->count; i < self->allocated; i += 1) {
+      self->inputs[i] = DIRECTION_NIL;
+    }
+    self->count = new_size;
+  }
+}
+
+void GameInputList_append(GameInputList* self, GameInput input) {
+  if (self->count + 1 > self->allocated) {
+    self->allocated *= 2;
+    self->inputs = xrealloc(self->inputs, sizeof(GameInput) * self->allocated);
+  }
+  self->inputs[self->count] = input;
+  self->count += 1;
 }

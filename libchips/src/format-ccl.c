@@ -106,7 +106,7 @@ Result_LevelSetPtr parse_ccl(uint8_t const* data, size_t data_len) {
   assert_data_avail(4);
   uint32_t magic_bytes = read_uint32_le(data);
   data += 4;
-  if (magic_bytes != 0x0002AAAC)
+  if (magic_bytes != 0x0002AAAC && magic_bytes != 0x0102AAAC)
     return res_err(LevelSetPtr,
                    "Invalid CCL signature. Are you sure this is a CCL file?");
   assert_data_avail(2);

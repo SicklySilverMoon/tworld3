@@ -437,11 +437,11 @@ namespace {
 
     EXPECT_EQ(set->solutions[1].level_num, 2);
     EXPECT_EQ(set->solutions[1].num_ticks, 0);
-    EXPECT_EQ(set->solutions[1].inputs, nullptr);
+    EXPECT_EQ(set->solutions[1].input_list.inputs, nullptr);
 
     EXPECT_EQ(set->solutions[0].num_ticks, std::size(example_inputs));
-    for (size_t i = 0; i < set->solutions[0].num_ticks; i++) {
-      GameInput input = set->solutions[0].inputs[i];
+    for (size_t i = 0; i < set->solutions[0].num_ticks; i += 1) {
+      GameInput input = set->solutions[0].input_list.inputs[i];
       GameInput example_input = example_inputs[i];
       // printf("%d : %d\n", input, example_input);
       EXPECT_EQ(input, example_input);

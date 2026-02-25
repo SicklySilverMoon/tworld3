@@ -15,16 +15,26 @@ struct LevelsetTwssetPair {
   TWSSet* tws;
 };
 
+typedef std::optional<LevelsetTwssetPair> LevelsetTwssetPairOptional;
+
 namespace {
-  LevelsetTwssetPair loadsets(uint8_t const* levelset, size_t levelset_size, uint8_t const* tws, size_t tws_size) {
+  LevelsetTwssetPairOptional loadsets(uint8_t const* levelset, size_t levelset_size, uint8_t const* tws, size_t tws_size) {
     LevelsetTwssetPair pair = {};
 
     Result_LevelSetPtr res = parse_ccl(levelset, levelset_size);
     EXPECT_TRUE(res.success);
+    if (!res.success) {
+      eprintf("%s\n", res.error);
+      return std::nullopt;
+    }
     pair.set = res.value;
 
     Result_TWSSetPtr tws_res = parse_tws(tws, tws_size);
     EXPECT_TRUE(tws_res.success);
+    if (!tws_res.success) {
+      eprintf("%s\n", tws_res.error);
+      return std::nullopt;
+    }
     pair.tws = tws_res.value;
     return pair;
   }
@@ -48,89 +58,82 @@ namespace {
     };
 
     printf("%u: ", level_num);
-    for (size_t i = 0; i < num_ticks; i++) {
+    for (size_t i = 0; i < num_ticks; i += 1) {
       putc(moves_chars[move_list[i]], stdout);
     }
     putc('\n', stdout);
   }
 
-  void testset(LevelsetTwssetPair pair) {
-    for (size_t i = 0; i < pair.set->levels_n; i++) {
+  LevelsetTwssetPairOptional testset(LevelsetTwssetPair pair) {
+    EXPECT_EQ(pair.set->levels_n, pair.tws->solutions_n);
+    if (pair.set->levels_n != pair.tws->solutions_n) {
+      return std::nullopt;
+    }
+
+    for (size_t i = 0; i < pair.set->levels_n; i += 1) {
       Result_LevelPtr level_res = LevelMetadata_make_level(&pair.set->levels[i], &ms_logic);
       EXPECT_TRUE(level_res.success);
       Level* level = level_res.value;
 
       TWSMetadata* solution = &pair.tws->solutions[i];
-      for (size_t j = 0; j < solution->num_ticks; j++) {
-        level->game_input = solution->inputs[j];
-        Level_tick(level);
+      if (solution->input_list.count < solution->num_ticks) {
+        printf("%d:\n", solution->level_num);
       }
-      if (!level->level_complete) {
-        print_moves(solution->level_num, solution->inputs, solution->num_ticks);
+      EXPECT_GE(solution->input_list.count, solution->num_ticks);
+      if (solution->input_list.count >= solution->num_ticks) {
+        for (size_t j = 0; j < solution->num_ticks; j += 1) {
+          level->game_input = solution->input_list.inputs[j];
+          Level_tick(level);
+        }
+        if (!level->level_complete) {
+          print_moves(solution->level_num, solution->input_list.inputs, solution->num_ticks);
+        }
+        EXPECT_TRUE(level->level_complete);
       }
-      EXPECT_TRUE(level->level_complete);
       Level_free(level);
     }
     freeset(pair);
+    return std::nullopt;
   }
 
   TEST(CCLP1TWS, LoadAndPlayMS) {
-    LevelsetTwssetPair pair = loadsets(CCLP1_ccl, sizeof(CCLP1_ccl), public_CCLP1_tws, sizeof(public_CCLP1_tws));
-    EXPECT_EQ(pair.set->levels_n, pair.tws->solutions_n);
-    testset(pair);
+    loadsets(CCLP1_ccl, sizeof(CCLP1_ccl), public_CCLP1_tws, sizeof(public_CCLP1_tws)).and_then(testset);
   }
 
   TEST(CCLP1TWS, LoadAndPlayLynx) {
-    LevelsetTwssetPair pair = loadsets(CCLP1_ccl, sizeof(CCLP1_ccl), public_CCLP1_lynx_tws, sizeof(public_CCLP1_lynx_tws));
-    EXPECT_EQ(pair.set->levels_n, pair.tws->solutions_n);
-    testset(pair);
+    loadsets(CCLP1_ccl, sizeof(CCLP1_ccl), public_CCLP1_lynx_tws, sizeof(public_CCLP1_lynx_tws)).and_then(testset);
   }
 
   TEST(CCLP2TWS, LoadAndPlayMS) {
-    LevelsetTwssetPair pair = loadsets(CCLP2_ccl, sizeof(CCLP2_ccl), public_CCLP2_tws, sizeof(public_CCLP2_tws));
-    EXPECT_EQ(pair.set->levels_n, pair.tws->solutions_n);
-    testset(pair);
+    loadsets(CCLP2_ccl, sizeof(CCLP2_ccl), public_CCLP2_tws, sizeof(public_CCLP2_tws)).and_then(testset);
   }
 
   TEST(CCLP2TWS, LoadAndPlayLynx) {
-    LevelsetTwssetPair pair = loadsets(CCLXP2_ccl, sizeof(CCLXP2_ccl), public_CCLXP2_tws, sizeof(public_CCLXP2_tws));
-    EXPECT_EQ(pair.set->levels_n, pair.tws->solutions_n);
-    testset(pair);
+    loadsets(CCLXP2_ccl, sizeof(CCLXP2_ccl), public_CCLXP2_tws, sizeof(public_CCLXP2_tws)).and_then(testset);
   }
 
   TEST(CCLP3TWS, LoadAndPlayMS) {
-    LevelsetTwssetPair pair = loadsets(CCLP3_ccl, sizeof(CCLP3_ccl), public_CCLP3_tws, sizeof(public_CCLP3_tws));
-    EXPECT_EQ(pair.set->levels_n, pair.tws->solutions_n);
-    testset(pair);
+    loadsets(CCLP3_ccl, sizeof(CCLP3_ccl), public_CCLP3_tws, sizeof(public_CCLP3_tws)).and_then(testset);
   }
 
   TEST(CCLP3TWS, LoadAndPlayLynx) {
-    LevelsetTwssetPair pair = loadsets(CCLP3_ccl, sizeof(CCLP3_ccl), public_CCLP3_lynx_tws, sizeof(public_CCLP3_lynx_tws));
-    EXPECT_EQ(pair.set->levels_n, pair.tws->solutions_n);
-    testset(pair);
+    loadsets(CCLP3_ccl, sizeof(CCLP3_ccl), public_CCLP3_lynx_tws, sizeof(public_CCLP3_lynx_tws)).and_then(testset);
   }
 
   TEST(CCLP4TWS, LoadAndPlayMS) {
-    LevelsetTwssetPair pair = loadsets(CCLP4_ccl, sizeof(CCLP4_ccl), public_CCLP4_tws, sizeof(public_CCLP4_tws));
-    EXPECT_EQ(pair.set->levels_n, pair.tws->solutions_n);
-    testset(pair);
+    loadsets(CCLP4_ccl, sizeof(CCLP4_ccl), public_CCLP4_tws, sizeof(public_CCLP4_tws)).and_then(testset);
   }
 
   TEST(CCLP4TWS, LoadAndPlayLynx) {
-    LevelsetTwssetPair pair = loadsets(CCLP4_ccl, sizeof(CCLP4_ccl), public_CCLP4_lynx_tws, sizeof(public_CCLP4_lynx_tws));
-    EXPECT_EQ(pair.set->levels_n, pair.tws->solutions_n);
-    testset(pair);
+    loadsets(CCLP4_ccl, sizeof(CCLP4_ccl), public_CCLP4_lynx_tws, sizeof(public_CCLP4_lynx_tws)).and_then(testset);
   }
 
-  TEST(CCLP5TWS, LoadAndPlayMS) {
-    LevelsetTwssetPair pair = loadsets(CCLP5_ccl, sizeof(CCLP5_ccl), public_CCLP5_tws, sizeof(public_CCLP5_tws));
-    EXPECT_EQ(pair.set->levels_n, pair.tws->solutions_n);
-    testset(pair);
-  }
-
-  TEST(CCLP5TWS, LoadAndPlayLynx) {
-    LevelsetTwssetPair pair = loadsets(CCLP5_ccl, sizeof(CCLP5_ccl), public_CCLP5_lynx_tws, sizeof(public_CCLP5_lynx_tws));
-    EXPECT_EQ(pair.set->levels_n, pair.tws->solutions_n);
-    testset(pair);
-  }
+  // public TWSes for CCLP5 aren't full yet and as such aren't really good for this
+  // TEST(CCLP5TWS, LoadAndPlayMS) {
+  //   loadsets(CCLP5_ccl, sizeof(CCLP5_ccl), public_CCLP5_tws, sizeof(public_CCLP5_tws)).and_then(testset);
+  // }
+  //
+  // TEST(CCLP5TWS, LoadAndPlayLynx) {
+  //   loadsets(CCLP5_ccl, sizeof(CCLP5_ccl), public_CCLP5_lynx_tws, sizeof(public_CCLP5_lynx_tws)).and_then(testset);
+  // }
 }
