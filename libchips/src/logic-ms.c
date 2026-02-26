@@ -1344,9 +1344,7 @@ static void Level_activate_cloner(Level* self, Position button_pos) {
     if (actor->direction != DIRECTION_NIL)
       Actor_advance_movement(actor, self, actor->direction);
   } else {
-    if (MapTile_get_state(
-            MapCell_get_bottom_tile(Level_get_map_cell(self, pos))) &
-        FS_CLONING)
+    if (MapTile_get_state(MapCell_get_bottom_tile(Level_get_map_cell(self, pos))) & FS_CLONING)
       return;
     memset(&dummy, 0, sizeof(dummy));
     dummy.id = TileID_actor_get_id(tileid);
@@ -1359,8 +1357,7 @@ static void Level_activate_cloner(Level* self, Position button_pos) {
       return;
     actor->state |= CS_CLONING;
     if (Level_cell_get_bottom_floor(self, pos) == CloneMachine)
-      MapTile_add_cloning_state(
-          MapCell_get_bottom_tile(Level_get_map_cell(self, pos)));
+      MapTile_add_cloning_state(MapCell_get_bottom_tile(Level_get_map_cell(self, pos)));
   }
 }
 
@@ -1718,7 +1715,7 @@ static void Actor_end_movement(Actor* self, Level* level, Direction dir) {
     blockcloning = true; /* Squish patch */
 
   if (MapCell_get_bottom_floor(old_cell) == CloneMachine)
-    MapTile_add_cloning_state(MapCell_get_bottom_tile(old_cell));
+    MapTile_remove_cloning_state(MapCell_get_bottom_tile(old_cell));
 
   if (floor == Beartrap) {
     if (Level_is_trap_open(level, newpos, oldpos))
