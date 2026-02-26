@@ -33,12 +33,12 @@ uint32_t TWSMetadata_get_length(TWSMetadata const* self) {
   return self->num_ticks;
 }
 
-GameInputList const* TWSMetadata_get_inputs(TWSMetadata const* self) {
+GameInputList const* TWSMetadata_get_input_list(TWSMetadata const* self) {
   return &self->input_list;
 }
 
 GameInput TWSMetadata_get_input(TWSMetadata const* self, uint32_t tick_num) {
-  if (tick_num >= self->num_ticks) {
+  if (tick_num >= self->input_list.count) {
     return DIRECTION_NIL;
   }
   return self->input_list.inputs[tick_num];

@@ -170,13 +170,13 @@ namespace {
     EXPECT_TRUE(res.success);
 
     LevelSet* set = res.value;
-    EXPECT_EQ(set->levels_n, 149);
+    EXPECT_EQ(LevelSet_get_levels_n(set), 149);
 
     for (size_t i = 0; i < 149; i += 1) {
-      EXPECT_STREQ(set->levels[i].title, pairs[i].title);
-      EXPECT_EQ(set->levels[i].time_limit, pairs[i].time);
+      EXPECT_STREQ(LevelMetadata_get_title(LevelSet_get_level(set, i)), pairs[i].title);
+      EXPECT_EQ(LevelMetadata_get_time_limit(LevelSet_get_level(set, i)), pairs[i].time);
 
-      Result_LevelPtr level_res = LevelMetadata_make_level(&set->levels[i], &ms_logic);
+      Result_LevelPtr level_res = LevelMetadata_make_level(LevelSet_get_level(set, i), &ms_logic);
       EXPECT_TRUE(level_res.success);
       Level_free(level_res.value);
     }
@@ -187,10 +187,12 @@ namespace {
     uint8_t data[0];
     Result_LevelSetPtr ccl = parse_ccl(data, 0);
     ASSERT_FALSE(ccl.success);
+    free(ccl.error);
   }
 
   TEST(FormatTws, NullFile) {
     Result_LevelSetPtr ccl = parse_ccl(NULL, 100);
     ASSERT_FALSE(ccl.success);
+    free(ccl.error);
   }
 }

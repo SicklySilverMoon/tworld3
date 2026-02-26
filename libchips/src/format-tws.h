@@ -30,7 +30,7 @@ Direction TWSMetadata_get_slide_dir(TWSMetadata const* self);
 int8_t TWSMetadata_get_step(TWSMetadata const* self);
 uint32_t TWSMetadata_get_prng_seed(TWSMetadata const* self);
 uint32_t TWSMetadata_get_length(TWSMetadata const* self);
-GameInputList const* TWSMetadata_get_inputs(TWSMetadata const* self);
+GameInputList const* TWSMetadata_get_input_list(TWSMetadata const* self);
 GameInput TWSMetadata_get_input(TWSMetadata const* self, uint32_t tick_num);
 // void TWSMetadata_set_input(TWSMetadata const* self, uint32_t tick_num, GameInput input);
 

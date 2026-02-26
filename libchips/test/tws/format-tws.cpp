@@ -8,7 +8,7 @@ extern "C" {
 }
 
 namespace {
-    GameInput example_inputs[] = {
+  GameInput example_inputs[] = {
     2,
     0,
     0,
@@ -414,34 +414,39 @@ namespace {
     uint8_t data[0];
     Result_TWSSetPtr tws = parse_tws(data, 0);
     ASSERT_FALSE(tws.success);
+    free(tws.error);
   }
   TEST(FormatTws, NullFile) {
     Result_TWSSetPtr tws = parse_tws(NULL, 100);
     ASSERT_FALSE(tws.success);
+    free(tws.error);
   }
 
   TEST(FormatTws, Example) {
     Result_TWSSetPtr tws_res = parse_tws(example_tws, sizeof(example_tws));
-    EXPECT_TRUE(tws_res.success);
+    ASSERT_TRUE(tws_res.success);
     TWSSet* set = tws_res.value;
-    EXPECT_EQ(set->ruleset, Ruleset_MS);
-    EXPECT_EQ(set->solutions_n, 2);
+    EXPECT_EQ(TWSSet_get_ruleset(set), Ruleset_MS);
+    EXPECT_EQ(TWSSet_get_solutions_n(set), 2);
     EXPECT_EQ(set->solutions_allocated, 2);
 
-    EXPECT_EQ(set->solutions[0].level_num, 1);
-    EXPECT_EQ(set->solutions[0].prng_seed, 342566057);
-    EXPECT_EQ(set->solutions[0].num_ticks, 398);
-    EXPECT_EQ(set->solutions[0].other_flags, 0);
-    EXPECT_EQ(set->solutions[0].step_value, 0);
-    EXPECT_EQ(set->solutions[0].slide_direction, 0);
 
-    EXPECT_EQ(set->solutions[1].level_num, 2);
-    EXPECT_EQ(set->solutions[1].num_ticks, 0);
+    EXPECT_EQ(TWSSet_get_level_solution(set, 1), &set->solutions[0]);
+    EXPECT_EQ(TWSMetadata_get_level_num(TWSSet_get_level_solution(set, 1)), 1);
+    EXPECT_EQ(TWSMetadata_get_prng_seed(TWSSet_get_level_solution(set, 1)), 342566057);
+    EXPECT_EQ(TWSMetadata_get_length(TWSSet_get_level_solution(set, 1)), 398);
+    EXPECT_EQ(TWSMetadata_get_flags(TWSSet_get_level_solution(set, 1)), 0);
+    EXPECT_EQ(TWSMetadata_get_step(TWSSet_get_level_solution(set, 1)), 0);
+    EXPECT_EQ(TWSMetadata_get_slide_dir(TWSSet_get_level_solution(set, 1)), 0);
+
+    EXPECT_EQ(TWSSet_get_level_solution(set, 2), &set->solutions[1]);
+    EXPECT_EQ(TWSMetadata_get_level_num(TWSSet_get_level_solution(set, 2)), 2);
+    EXPECT_EQ(TWSMetadata_get_length(TWSSet_get_level_solution(set, 2)), 0);
     EXPECT_EQ(set->solutions[1].input_list.inputs, nullptr);
 
-    EXPECT_EQ(set->solutions[0].num_ticks, std::size(example_inputs));
-    for (size_t i = 0; i < set->solutions[0].num_ticks; i += 1) {
-      GameInput input = set->solutions[0].input_list.inputs[i];
+    EXPECT_EQ(TWSMetadata_get_length(TWSSet_get_level_solution(set, 1)), std::size(example_inputs));
+    for (size_t i = 0; i < TWSMetadata_get_length(TWSSet_get_level_solution(set, 1)); i += 1) {
+      GameInput input = TWSMetadata_get_input(TWSSet_get_level_solution(set, 1), i);
       GameInput example_input = example_inputs[i];
       // printf("%d : %d\n", input, example_input);
       EXPECT_EQ(input, example_input);
@@ -454,11 +459,11 @@ namespace {
     Result_TWSSetPtr tws_res = parse_tws(public_CHIPS_tws, sizeof(public_CHIPS_tws));
     EXPECT_TRUE(tws_res.success);
     TWSSet* set = tws_res.value;
-    EXPECT_EQ(set->ruleset, Ruleset_MS);
-    EXPECT_EQ(set->solutions_n, 149);
+    EXPECT_EQ(TWSSet_get_ruleset(set), Ruleset_MS);
+    EXPECT_EQ(TWSSet_get_solutions_n(set), 149);
     EXPECT_EQ(set->solutions_allocated, 149);
 
-    EXPECT_STREQ(set->set_name, "public_CHIPS.dac");
+    EXPECT_STREQ(TWSSet_get_set_name(set), "public_CHIPS.dac");
 
     TWSSet_free(set);
   }

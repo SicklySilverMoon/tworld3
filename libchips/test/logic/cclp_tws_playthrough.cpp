@@ -44,7 +44,7 @@ namespace {
     TWSSet_free(pair.tws);
   }
 
-  void print_moves(uint16_t level_num, const GameInput* move_list, uint32_t num_ticks) {
+  void print_moves(uint16_t level_num, GameInputList const* move_list, uint32_t num_ticks) {
     const char moves_chars[] = {
       [DIRECTION_NIL] = '-',
       [DIRECTION_NORTH] = 'N',
@@ -59,36 +59,41 @@ namespace {
 
     printf("%u: ", level_num);
     for (size_t i = 0; i < num_ticks; i += 1) {
-      putc(moves_chars[move_list[i]], stdout);
+      putc(moves_chars[move_list->inputs[i]], stdout);
     }
     putc('\n', stdout);
   }
 
   LevelsetTwssetPairOptional testset(LevelsetTwssetPair pair) {
-    EXPECT_EQ(pair.set->levels_n, pair.tws->solutions_n);
+    EXPECT_EQ(LevelSet_get_levels_n(pair.set), TWSSet_get_solutions_n(pair.tws));
     if (pair.set->levels_n != pair.tws->solutions_n) {
       return std::nullopt;
     }
 
     for (size_t i = 0; i < pair.set->levels_n; i += 1) {
-      Result_LevelPtr level_res = LevelMetadata_make_level(&pair.set->levels[i], &ms_logic);
+      Result_LevelPtr level_res;
+      if (TWSSet_get_ruleset(pair.tws) == Ruleset_MS) {
+        level_res = LevelMetadata_make_level(&pair.set->levels[i], &ms_logic);
+      } else if (TWSSet_get_ruleset(pair.tws) == Ruleset_Lynx) {
+        level_res = LevelMetadata_make_level(&pair.set->levels[i], &lynx_logic);
+      }
       EXPECT_TRUE(level_res.success);
       Level* level = level_res.value;
 
-      TWSMetadata* solution = &pair.tws->solutions[i];
-      if (solution->input_list.count < solution->num_ticks) {
+      TWSMetadata const* solution = TWSSet_get_level_solution(pair.tws, i + 1);
+      if (TWSMetadata_get_input_list(solution)->count < TWSMetadata_get_length(solution)) {
         printf("%d:\n", solution->level_num);
       }
-      EXPECT_GE(solution->input_list.count, solution->num_ticks);
-      if (solution->input_list.count >= solution->num_ticks) {
-        for (size_t j = 0; j < solution->num_ticks; j += 1) {
-          level->game_input = solution->input_list.inputs[j];
+      EXPECT_GE(TWSMetadata_get_input_list(solution)->count, TWSMetadata_get_length(solution));
+      if (TWSMetadata_get_input_list(solution)->count >= TWSMetadata_get_length(solution)) {
+        for (size_t j = 0; j < TWSMetadata_get_length(solution); j += 1) {
+          Level_set_game_input(level, TWSMetadata_get_input(solution, j));
           Level_tick(level);
         }
-        if (!level->level_complete) {
-          print_moves(solution->level_num, solution->input_list.inputs, solution->num_ticks);
+        if (Level_get_win_state(level) != TRIRES_SUCCESS) {
+          print_moves(TWSMetadata_get_level_num(solution), TWSMetadata_get_input_list(solution), TWSMetadata_get_length(solution));
         }
-        EXPECT_TRUE(level->level_complete);
+        EXPECT_EQ(Level_get_win_state(level), TRIRES_SUCCESS);
       }
       Level_free(level);
     }
