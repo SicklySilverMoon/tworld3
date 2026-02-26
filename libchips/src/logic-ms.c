@@ -555,10 +555,11 @@ static void Actor_update_floor(Actor* self, Level* level) {
     }
   }
 
+  Direction dir = self->direction;
   if (self->state & CS_TURNING)
-    self->direction = Direction_right(self->direction);
+    dir = Direction_right(self->direction);
 
-  MapTile_set_floor(tile, TileID_actor_with_dir(id, self->direction));
+  MapTile_set_floor(tile, TileID_actor_with_dir(id, dir));
   MapTile_clear_state(tile);
 }
 
@@ -1971,7 +1972,6 @@ static bool ms_init_level(Level* self) {
   chip->pos = 0;
   chip->id = Chip;
   chip->direction = DIRECTION_SOUTH;
-  Actor_add_to_map(chip, self);
   for (uint32_t n = 0; n < self->ms_state.init_actors_n; ++n) {
     pos = self->ms_state.init_actor_list[n];
     if (pos < 0 || pos >= MAP_WIDTH * MAP_HEIGHT) {
