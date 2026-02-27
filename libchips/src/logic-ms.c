@@ -464,8 +464,7 @@ static void Level_toggle_walls(Level* level) {
 
 static Actor* Level_create_actor(Level* level) {
   if (level->ms_state.actor_count == MAX_CREATURES) {
-    warn("%d: filled the actor array (note: this should NOT be possible)",
-         level->current_tick);
+    warn("%d: filled the actor array (note: this should NOT be possible)", level->current_tick);
     return NULL;
   }
   Actor* actor = &level->actors[level->ms_state.actor_count];
@@ -581,6 +580,9 @@ static Actor* Level_awaken_creature(Level* self, Position pos) {
   if (!TileID_is_actor(tileid) || TileID_actor_get_id(tileid) == Chip)
     return NULL;
   Actor* new = Level_create_actor(self);
+  if (!new) {
+    return NULL;
+  }
   new->id = TileID_actor_get_id(tileid);
   new->direction = TileID_actor_get_dir(tileid);
   new->pos = pos;

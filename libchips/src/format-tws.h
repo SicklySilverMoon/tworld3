@@ -11,6 +11,9 @@ typedef struct GameInputList { // todo: get a proper vector style generic thing 
   size_t count;
   size_t allocated;
 } GameInputList;
+DEFINE_RESULT(GameInputList);
+
+typedef struct CompressedInputList CompressedInputList;
 
 typedef struct TWSMetadata {
   uint16_t level_num;
@@ -20,7 +23,7 @@ typedef struct TWSMetadata {
   int8_t step_value;
   uint32_t prng_seed;
   uint32_t num_ticks;
-  GameInputList input_list;
+  CompressedInputList* compressed_inputs;
 } TWSMetadata;
 
 uint16_t TWSMetadata_get_level_num(TWSMetadata const* self);
@@ -30,9 +33,8 @@ Direction TWSMetadata_get_slide_dir(TWSMetadata const* self);
 int8_t TWSMetadata_get_step(TWSMetadata const* self);
 uint32_t TWSMetadata_get_prng_seed(TWSMetadata const* self);
 uint32_t TWSMetadata_get_length(TWSMetadata const* self);
-GameInputList const* TWSMetadata_get_input_list(TWSMetadata const* self);
-GameInput TWSMetadata_get_input(TWSMetadata const* self, uint32_t tick_num);
-// void TWSMetadata_set_input(TWSMetadata const* self, uint32_t tick_num, GameInput input);
+Result_GameInputList TWSMetadata_prepare_inputs(TWSMetadata const* self); // caller owns the resulting input list
+void TWSMetadata_free(TWSMetadata* self);
 
 typedef struct TWSSet {
   RulesetID ruleset;
@@ -62,5 +64,6 @@ void GameInputList_free(GameInputList* self);
 void GameInputList_shrink(GameInputList* self);
 void GameInputList_resize(GameInputList* self, size_t new_size);
 void GameInputList_append(GameInputList* self, GameInput input);
+GameInput GameInputList_get_input(GameInputList const* self, size_t tick);
 
 #endif //FORMAT_TWS_H

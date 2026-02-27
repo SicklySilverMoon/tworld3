@@ -442,15 +442,21 @@ namespace {
     EXPECT_EQ(TWSSet_get_level_solution(set, 2), &set->solutions[1]);
     EXPECT_EQ(TWSMetadata_get_level_num(TWSSet_get_level_solution(set, 2)), 2);
     EXPECT_EQ(TWSMetadata_get_length(TWSSet_get_level_solution(set, 2)), 0);
-    EXPECT_EQ(set->solutions[1].input_list.inputs, nullptr);
+    Result_GameInputList res = TWSMetadata_prepare_inputs(TWSSet_get_level_solution(set, 2));
+    ASSERT_FALSE(res.success);
+    free(res.error);
 
-    EXPECT_EQ(TWSMetadata_get_length(TWSSet_get_level_solution(set, 1)), std::size(example_inputs));
+    res = TWSMetadata_prepare_inputs(TWSSet_get_level_solution(set, 1));
+    ASSERT_TRUE(res.success);
+    GameInputList input_list = res.value;
+    EXPECT_EQ(input_list.count, std::size(example_inputs));
     for (size_t i = 0; i < TWSMetadata_get_length(TWSSet_get_level_solution(set, 1)); i += 1) {
-      GameInput input = TWSMetadata_get_input(TWSSet_get_level_solution(set, 1), i);
+      GameInput input = GameInputList_get_input(&input_list, i);
       GameInput example_input = example_inputs[i];
       // printf("%d : %d\n", input, example_input);
       EXPECT_EQ(input, example_input);
     }
+    GameInputList_free(&input_list);
 
     TWSSet_free(set);
   }

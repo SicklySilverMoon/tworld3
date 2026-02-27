@@ -81,20 +81,24 @@ namespace {
       Level* level = level_res.value;
 
       TWSMetadata const* solution = TWSSet_get_level_solution(pair.tws, i + 1);
-      if (TWSMetadata_get_input_list(solution)->count < TWSMetadata_get_length(solution)) {
+      Result_GameInputList res = TWSMetadata_prepare_inputs(solution);
+      EXPECT_TRUE(res.success);
+      GameInputList input_list = res.value;
+      if (input_list.count < TWSMetadata_get_length(solution)) {
         printf("%d:\n", solution->level_num);
       }
-      EXPECT_GE(TWSMetadata_get_input_list(solution)->count, TWSMetadata_get_length(solution));
-      if (TWSMetadata_get_input_list(solution)->count >= TWSMetadata_get_length(solution)) {
+      EXPECT_GE(input_list.count, TWSMetadata_get_length(solution));
+      if (input_list.count >= TWSMetadata_get_length(solution)) {
         for (size_t j = 0; j < TWSMetadata_get_length(solution); j += 1) {
-          Level_set_game_input(level, TWSMetadata_get_input(solution, j));
+          Level_set_game_input(level, GameInputList_get_input(&input_list, j));
           Level_tick(level);
         }
         if (Level_get_win_state(level) != TRIRES_SUCCESS) {
-          print_moves(TWSMetadata_get_level_num(solution), TWSMetadata_get_input_list(solution), TWSMetadata_get_length(solution));
+          print_moves(TWSMetadata_get_level_num(solution), &input_list, TWSMetadata_get_length(solution));
         }
         EXPECT_EQ(Level_get_win_state(level), TRIRES_SUCCESS);
       }
+      GameInputList_free(&input_list);
       Level_free(level);
     }
     freeset(pair);

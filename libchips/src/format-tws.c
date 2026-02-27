@@ -5,6 +5,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+struct CompressedInputList {
+  uint8_t* bytes;
+  size_t count;
+};
+
 uint16_t TWSMetadata_get_level_num(TWSMetadata const* self) {
   return self->level_num;
 }
@@ -33,15 +38,97 @@ uint32_t TWSMetadata_get_length(TWSMetadata const* self) {
   return self->num_ticks;
 }
 
-GameInputList const* TWSMetadata_get_input_list(TWSMetadata const* self) {
-  return &self->input_list;
+Result_GameInputList TWSMetadata_prepare_inputs(TWSMetadata const* self) {
+  if (self->compressed_inputs == NULL) {
+    return res_err(GameInputList, "Solution has no inputs");
+  }
+
+  static_assert(((GameInput) DIRECTION_NIL) == 0);
+  GameInputList input_list = GameInputList_new(self->num_ticks);
+  uint32_t tick = 0;
+  GameInput const input_lookup[] = {DIRECTION_NORTH, DIRECTION_WEST, DIRECTION_SOUTH, DIRECTION_EAST,
+    DIRECTION_NORTH | DIRECTION_WEST, DIRECTION_SOUTH | DIRECTION_WEST, DIRECTION_NORTH | DIRECTION_EAST,
+    DIRECTION_SOUTH | DIRECTION_EAST};
+  size_t size = self->compressed_inputs->count;
+  uint8_t const* data = self->compressed_inputs->bytes;
+  while (size) {
+    uint32_t time = 0;
+    GameInput input;
+
+    uint8_t first_byte = *data;
+    data += 1;
+    size -= 1;
+    if ((first_byte & 0b11) == 0b00) {
+      input = input_lookup[(first_byte >> 2) & 0b11];
+      GameInput input2 = input_lookup[(first_byte >> 4) & 0b11];
+      GameInput input3 = input_lookup[(first_byte >> 6) & 0b11];
+
+      GameInputList_append(&input_list, DIRECTION_NIL);
+      GameInputList_append(&input_list, DIRECTION_NIL);
+      GameInputList_append(&input_list, DIRECTION_NIL);
+      GameInputList_append(&input_list, input);
+      tick += 4;
+      GameInputList_append(&input_list, DIRECTION_NIL);
+      GameInputList_append(&input_list, DIRECTION_NIL);
+      GameInputList_append(&input_list, DIRECTION_NIL);
+      GameInputList_append(&input_list, input2);
+      tick += 4;
+      GameInputList_append(&input_list, DIRECTION_NIL);
+      GameInputList_append(&input_list, DIRECTION_NIL);
+      GameInputList_append(&input_list, DIRECTION_NIL);
+      GameInputList_append(&input_list, input3);
+      tick += 4;
+    } else {
+      if ((first_byte & 0b11) == 0b01) {
+        time = first_byte >> 5;
+        input = input_lookup[(first_byte >> 2) & 0b111];
+      } else if ((first_byte & 0b11) == 0b10) {
+        uint8_t second_byte = *data;
+        data += 1;
+        size -= 1;
+        time = second_byte << 3 | first_byte >> 5;
+        input = input_lookup[(first_byte >> 2) & 0b111];
+      } else /*if ((first_byte & 0b11) == 0b11)*/ {
+        if (!(first_byte & 0b10000)) {
+          uint8_t second_byte = data[0];
+          uint8_t third_byte = data[1];
+          uint8_t fourth_byte = data[2];
+          data += 3;
+          size -= 3;
+          input = input_lookup[(first_byte >> 2) & 0b11];
+          time = ((fourth_byte & 0b00001111) << 19 | third_byte << 11 | second_byte << 3 | first_byte >> 5);
+        } else {
+          uint8_t num_bytes = ((first_byte >> 2) & 0b11) + 1;
+          uint8_t bytes[5] = {0, 0, 0, 0, 0};
+          bytes[0] = first_byte;
+          memcpy(bytes + 1, data, num_bytes);
+          data += num_bytes;
+          size -= num_bytes;
+          num_bytes += 1;
+          input = bytes[1] & 0b00111111 | bytes[0] >> 5;
+          time = (bytes[4] & 0b00011111) << 18 | bytes[3] << 10 | bytes[2] << 2 | bytes[1] >> 6;
+        }
+      }
+      for (uint32_t i = 0; i < time; i += 1) {
+        GameInputList_append(&input_list, DIRECTION_NIL);
+      }
+      GameInputList_append(&input_list, input);
+      tick += time + 1;
+    }
+  }
+  if (input_list.count < TWSMetadata_get_length(self)) {
+    GameInputList_resize(&input_list, TWSMetadata_get_length(self));
+  } else {
+    GameInputList_shrink(&input_list);
+  }
+  return res_val(GameInputList, input_list);
 }
 
-GameInput TWSMetadata_get_input(TWSMetadata const* self, uint32_t tick_num) {
-  if (tick_num >= self->input_list.count) {
-    return DIRECTION_NIL;
+void TWSMetadata_free(TWSMetadata* self) {
+  if (self->compressed_inputs) {
+    free(self->compressed_inputs->bytes);
+    free(self->compressed_inputs);
   }
-  return self->input_list.inputs[tick_num];
 }
 
 RulesetID TWSSet_get_ruleset(TWSSet const* self) {
@@ -61,7 +148,7 @@ uint32_t TWSSet_get_solutions_n(TWSSet const* self) {
 }
 
 TWSMetadata const* TWSSet_get_level_solution(TWSSet const* self, uint16_t level_num) {
-  for (uint16_t i = 0; i < self->solutions_n; i += 1) {
+  for (uint32_t i = 0; i < self->solutions_n; i += 1) {
     if (self->solutions[i].level_num == level_num) {
       return &self->solutions[i];
     }
@@ -75,10 +162,6 @@ TWSMetadata const* TWSSet_get_solution_by_idx(TWSSet const* self, uint32_t idx) 
 
 uint32_t TWSSet_get_level_idx(TWSSet const* self, uint16_t level_num) {
   return TWSSet_get_level_solution(self, level_num) - self->solutions;
-}
-
-void TWSMetadata_free(TWSMetadata* self) {
-  GameInputList_free(&self->input_list);
 }
 
 void TWSSet_free(TWSSet* self) {
@@ -208,84 +291,12 @@ Result_TWSSetPtr parse_tws(uint8_t const* data, size_t data_len) {
         level.num_ticks = read_uint32_le(data) + 1; // yeah idk either but it is correct
         data += 4;
         size -= 10;
-
-        static_assert(((GameInput) DIRECTION_NIL) == 0);
-        level.input_list = GameInputList_new(level.num_ticks);
-        uint32_t tick = 0;
-        GameInput const input_lookup[] = {DIRECTION_NORTH, DIRECTION_WEST, DIRECTION_SOUTH, DIRECTION_EAST,
-          DIRECTION_NORTH | DIRECTION_WEST, DIRECTION_SOUTH | DIRECTION_WEST, DIRECTION_NORTH | DIRECTION_EAST,
-          DIRECTION_SOUTH | DIRECTION_EAST};
-        while (size) {
-          uint32_t time = 0;
-          GameInput input;
-
-          uint8_t first_byte = *data;
-          data += 1;
-          size -= 1;
-          if ((first_byte & 0b11) == 0b00) {
-            input = input_lookup[(first_byte >> 2) & 0b11];
-            GameInput input2 = input_lookup[(first_byte >> 4) & 0b11];
-            GameInput input3 = input_lookup[(first_byte >> 6) & 0b11];
-
-            GameInputList_append(&level.input_list, DIRECTION_NIL);
-            GameInputList_append(&level.input_list, DIRECTION_NIL);
-            GameInputList_append(&level.input_list, DIRECTION_NIL);
-            GameInputList_append(&level.input_list, input);
-            tick += 4;
-            GameInputList_append(&level.input_list, DIRECTION_NIL);
-            GameInputList_append(&level.input_list, DIRECTION_NIL);
-            GameInputList_append(&level.input_list, DIRECTION_NIL);
-            GameInputList_append(&level.input_list, input2);
-            tick += 4;
-            GameInputList_append(&level.input_list, DIRECTION_NIL);
-            GameInputList_append(&level.input_list, DIRECTION_NIL);
-            GameInputList_append(&level.input_list, DIRECTION_NIL);
-            GameInputList_append(&level.input_list, input3);
-            tick += 4;
-          } else {
-            if ((first_byte & 0b11) == 0b01) {
-              time = first_byte >> 5;
-              input = input_lookup[(first_byte >> 2) & 0b111];
-            } else if ((first_byte & 0b11) == 0b10) {
-              assert_data_avail(1);
-              uint8_t second_byte = *data;
-              data += 1;
-              size -= 1;
-              time = second_byte << 3 | first_byte >> 5;
-              input = input_lookup[(first_byte >> 2) & 0b111];
-            } else /*if ((first_byte & 0b11) == 0b11)*/ {
-              if (!(first_byte & 0b10000)) {
-                assert_data_avail(3);
-                uint8_t second_byte = data[0];
-                uint8_t third_byte = data[1];
-                uint8_t fourth_byte = data[2];
-                data += 3;
-                size -= 3;
-                input = input_lookup[(first_byte >> 2) & 0b11];
-                time = ((fourth_byte & 0b00001111) << 19 | third_byte << 11 | second_byte << 3 | first_byte >> 5);
-              } else {
-                uint8_t num_bytes = ((first_byte >> 2) & 0b11) + 1;
-                assert_data_avail(num_bytes);
-                uint8_t bytes[5] = {0, 0, 0, 0, 0};
-                bytes[0] = first_byte;
-                memcpy(bytes + 1, data, num_bytes);
-                data += num_bytes;
-                size -= num_bytes;
-                num_bytes += 1;
-                input = bytes[1] & 0b00111111 | bytes[0] >> 5;
-                time = (bytes[4] & 0b00011111) << 18 | bytes[3] << 10 | bytes[2] << 2 | bytes[1] >> 6;
-              }
-            }
-            for (uint32_t i = 0; i < time; i += 1) {
-              GameInputList_append(&level.input_list, DIRECTION_NIL);
-            }
-            GameInputList_append(&level.input_list, input);
-            tick += time + 1;
-          }
-        }
-        if (level.input_list.count < level.num_ticks) {
-          GameInputList_resize(&level.input_list, level.num_ticks);
-        }
+        assert_data_avail(size);
+        level.compressed_inputs = xmalloc(sizeof(CompressedInputList));
+        level.compressed_inputs->bytes = xmalloc(size);
+        level.compressed_inputs->count = size;
+        memcpy(level.compressed_inputs->bytes, data, size);
+        data += size;
       }
       TWSSet_add_level(set, &level);
     }
@@ -310,9 +321,9 @@ GameInputList GameInputList_new(size_t initial_size) {
 }
 
 void GameInputList_free(GameInputList* self) {
+  free(self->inputs);
   self->count = 0;
   self->allocated = 0;
-  free(self->inputs);
   self->inputs = NULL;
 }
 
@@ -350,4 +361,11 @@ void GameInputList_append(GameInputList* self, GameInput input) {
   }
   self->inputs[self->count] = input;
   self->count += 1;
+}
+
+GameInput GameInputList_get_input(GameInputList const* self, size_t tick) {
+  if (tick >= self->count) {
+    return DIRECTION_NIL;
+  }
+  return self->inputs[tick];
 }
