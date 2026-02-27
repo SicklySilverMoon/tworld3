@@ -23,7 +23,7 @@ set(lib_chips_test_src)
 list(APPEND lib_chips_test_src
     ccl/format-ccl.cpp
     tws/format-tws.cpp
-        logic/cclp_tws_playthrough.cpp
+    logic/cclp_tws_playthrough.cpp
 )
 
 # 'libchipsTests' is the target name

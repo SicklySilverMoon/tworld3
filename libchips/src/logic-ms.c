@@ -1341,7 +1341,7 @@ static void Level_activate_cloner(Level* self, Position button_pos) {
   TileID tileid = Level_cell_get_top_floor(self, pos);
   if (!TileID_is_actor(tileid) || TileID_actor_get_id(tileid) == Chip)
     return;
-  if (TileID_actor_get_dir(tileid) == Block) {
+  if (TileID_actor_get_id(tileid) == Block) {
     actor = Level_look_up_block(self, pos);
     if (actor->direction != DIRECTION_NIL)
       Actor_advance_movement(actor, self, actor->direction);
