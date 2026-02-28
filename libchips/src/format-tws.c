@@ -5,11 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-struct CompressedInputList {
-  uint8_t* bytes;
-  size_t count;
-};
-
 uint16_t TWSMetadata_get_level_num(TWSMetadata const* self) {
   return self->level_num;
 }
@@ -39,7 +34,7 @@ uint32_t TWSMetadata_get_length(TWSMetadata const* self) {
 }
 
 Result_GameInputList TWSMetadata_prepare_inputs(TWSMetadata const* self) {
-  if (self->compressed_inputs == NULL) {
+  if (self->compressed_inputs.bytes == NULL) {
     return res_err(GameInputList, "Solution has no inputs");
   }
 
@@ -49,8 +44,8 @@ Result_GameInputList TWSMetadata_prepare_inputs(TWSMetadata const* self) {
   GameInput const input_lookup[] = {DIRECTION_NORTH, DIRECTION_WEST, DIRECTION_SOUTH, DIRECTION_EAST,
     DIRECTION_NORTH | DIRECTION_WEST, DIRECTION_SOUTH | DIRECTION_WEST, DIRECTION_NORTH | DIRECTION_EAST,
     DIRECTION_SOUTH | DIRECTION_EAST};
-  size_t size = self->compressed_inputs->count;
-  uint8_t const* data = self->compressed_inputs->bytes;
+  size_t size = self->compressed_inputs.count;
+  uint8_t const* data = self->compressed_inputs.bytes;
   while (size) {
     uint32_t time = 0;
     GameInput input;
@@ -125,10 +120,7 @@ Result_GameInputList TWSMetadata_prepare_inputs(TWSMetadata const* self) {
 }
 
 void TWSMetadata_free(TWSMetadata* self) {
-  if (self->compressed_inputs) {
-    free(self->compressed_inputs->bytes);
-    free(self->compressed_inputs);
-  }
+  free(self->compressed_inputs.bytes);
 }
 
 RulesetID TWSSet_get_ruleset(TWSSet const* self) {
@@ -292,10 +284,9 @@ Result_TWSSetPtr parse_tws(uint8_t const* data, size_t data_len) {
         data += 4;
         size -= 10;
         assert_data_avail(size);
-        level.compressed_inputs = xmalloc(sizeof(CompressedInputList));
-        level.compressed_inputs->bytes = xmalloc(size);
-        level.compressed_inputs->count = size;
-        memcpy(level.compressed_inputs->bytes, data, size);
+        level.compressed_inputs.bytes = xmalloc(size);
+        level.compressed_inputs.count = size;
+        memcpy(level.compressed_inputs.bytes, data, size);
         data += size;
       }
       TWSSet_add_level(set, &level);
@@ -332,6 +323,14 @@ void GameInputList_shrink(GameInputList* self) {
   self->inputs = xrealloc(self->inputs, sizeof(GameInput) * self->allocated);
 }
 
+static void GameInputList_grow(GameInputList* self) {
+  if (self->allocated == 0) {
+    self->allocated = 4;
+  }
+  self->allocated *= 2;
+  self->inputs = xrealloc(self->inputs, sizeof(GameInput) * self->allocated);
+}
+
 void GameInputList_resize(GameInputList* self, size_t new_size) {
   if (new_size == 0) {
     free(self->inputs);
@@ -341,23 +340,19 @@ void GameInputList_resize(GameInputList* self, size_t new_size) {
     return;
   }
   if (new_size <= self->count) {
-    self->allocated = new_size;
     self->count = new_size;
-    self->inputs = xrealloc(self->inputs, sizeof(GameInput) * self->allocated);
   } else {
-    self->allocated = new_size;
-    self->inputs = xrealloc(self->inputs, sizeof(GameInput) * self->allocated);
-    for (size_t i = self->count; i < self->allocated; i += 1) {
-      self->inputs[i] = DIRECTION_NIL;
+    while (self->allocated < new_size) {
+      GameInputList_grow(self);
     }
+    memset(self->inputs + self->count, 0, (new_size - self->count) * sizeof(GameInput));
     self->count = new_size;
   }
 }
 
 void GameInputList_append(GameInputList* self, GameInput input) {
   if (self->count + 1 > self->allocated) {
-    self->allocated *= 2;
-    self->inputs = xrealloc(self->inputs, sizeof(GameInput) * self->allocated);
+    GameInputList_grow(self);
   }
   self->inputs[self->count] = input;
   self->count += 1;

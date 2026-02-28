@@ -13,7 +13,10 @@ typedef struct GameInputList { // todo: get a proper vector style generic thing 
 } GameInputList;
 DEFINE_RESULT(GameInputList);
 
-typedef struct CompressedInputList CompressedInputList;
+typedef struct CompressedInputList {
+  uint8_t* bytes;
+  size_t count;
+} CompressedInputList;
 
 typedef struct TWSMetadata {
   uint16_t level_num;
@@ -23,7 +26,7 @@ typedef struct TWSMetadata {
   int8_t step_value;
   uint32_t prng_seed;
   uint32_t num_ticks;
-  CompressedInputList* compressed_inputs;
+  CompressedInputList compressed_inputs;
 } TWSMetadata;
 
 uint16_t TWSMetadata_get_level_num(TWSMetadata const* self);
